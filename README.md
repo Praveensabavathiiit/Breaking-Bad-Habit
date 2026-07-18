@@ -6,25 +6,25 @@ A GenAI-powered habit-breaking companion built for **PromptWars Hyderabad 2026**
 
 Most habit trackers just count days. Rewire uses Generative AI as the **core support mechanism** — the part that actually helps in the moment:
 
-1. **Personalized plan** — describe your habit, reason, and goal → Gemini writes a plan tailored to your specific trigger
+1. **Personalized plan** — describe your habit, reason, and goal → the AI coach writes a plan tailored to your specific trigger
 2. **Personalized tracking** — daily check-ins (on track / slip + mood + trigger), streaks, best streak, success rate
 3. **Adaptive coaching** — "Get today's nudge" reads your actual streak and recent check-ins and coaches you where you are — encouraging on a streak, compassionate after a slip
 4. **In-the-moment support** — "I'm craving right now" gives an immediate, healthy coping response (urge-surfing, delay, breathing) when it matters most
 
 ## How GenAI is the core (not bolted on)
 
-Four distinct Gemini prompts power four different jobs: plan generation, adaptive nudges, craving support, and structured output. Remove the AI and the product stops working — that's the brief's requirement met.
+Four distinct prompts power four different jobs: plan generation, adaptive nudges, craving support, and structured output. Remove the AI and the product stops working — that's the brief's requirement met.
 
 ## Architecture
 
 - **Frontend:** single-file HTML/CSS/JS, no framework, no build step
-- **AI:** Gemini 2.0 Flash via the user's own API key (nothing hardcoded)
+- **AI:** Groq (Llama 3.3 70B) via the user's own API key (nothing hardcoded)
 - **Storage:** `localStorage` — habit data is private and single-user, so it lives on the user's own device. Persists across sessions, zero setup, works offline.
 
 ## How to run
 
 1. Open `index.html` (or the deployed link)
-2. Paste a free Gemini key from https://aistudio.google.com/apikey
+2. Paste a free Groq key from https://console.groq.com/keys
 3. Pick your habit, set a goal, generate your plan
 
 ## Tests
