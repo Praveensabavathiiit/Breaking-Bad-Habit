@@ -21,6 +21,8 @@ function computeStreak(startDate,checkins,today){const slips=checkins.filter(c=>
 function computeLongestStreak(startDate,checkins,today){const slips=checkins.filter(c=>c.status==="slip").map(c=>c.date).sort();const p=[startDate,...slips,today];let best=0;for(let i=1;i<p.length;i++)best=Math.max(best,daysBetween(p[i-1],p[i]));return best;}
 function hasCheckedInToday(checkins,today){return (checkins||[]).some(c=>c.date===today);}
 function safeParseJson(text){if(!text)throw new Error("empty");const c=text.replace(/```json/gi,"").replace(/```/g,"").trim();const s=c.indexOf("{"),e=c.lastIndexOf("}");return JSON.parse(s!==-1&&e!==-1?c.slice(s,e+1):c);}
+function escHtml(str){return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+function computeStats(habit,today){const ci=habit.checkins||[];const total=ci.length;const good=ci.filter(c=>c.status==="good").length;const rate=total?Math.round((good/total)*100):null;const daysTracked=Math.max(1,daysBetween(habit.startDate,today)+1);return{streak:computeStreak(habit.startDate,ci,today),best:computeLongestStreak(habit.startDate,ci,today),rate,daysTracked};}
 
 const results=[];
 function test(n,f){try{f();results.push({n,ok:true});}catch(e){results.push({n,ok:false,m:e.message});}}
@@ -37,6 +39,12 @@ test("hasCheckedInToday true when logged", ()=>assert(hasCheckedInToday([{date:"
 test("hasCheckedInToday false otherwise", ()=>assert(hasCheckedInToday([{date:"2026-07-17"}],"2026-07-18")===false));
 test("safeParseJson strips fences", ()=>assert(eq(safeParseJson('```json\n{"a":1}\n```'),{a:1})));
 test("safeParseJson recovers amid text", ()=>assert(eq(safeParseJson('Sure: {"summary":"hi"} done'),{summary:"hi"})));
+test("escHtml neutralizes script tags", ()=>assert(escHtml('<script>alert(1)</script>')==='&lt;script&gt;alert(1)&lt;/script&gt;'));
+test("escHtml neutralizes attribute-breakout quotes", ()=>assert(escHtml(`"><img src=x onerror=alert(1)>`)==='&quot;&gt;&lt;img src=x onerror=alert(1)&gt;'));
+test("escHtml escapes ampersand without double-escaping", ()=>assert(escHtml('Tom & Jerry')==='Tom &amp; Jerry'));
+test("computeStats success rate rounds correctly", ()=>assert(computeStats({startDate:"2026-07-10",checkins:[{status:"good",date:"2026-07-11"},{status:"good",date:"2026-07-12"},{status:"slip",date:"2026-07-13"}]},"2026-07-18").rate===67));
+test("computeStats rate is null with no check-ins", ()=>assert(computeStats({startDate:"2026-07-10",checkins:[]},"2026-07-18").rate===null));
+test("computeStats daysTracked is inclusive of start day", ()=>assert(computeStats({startDate:"2026-07-18",checkins:[]},"2026-07-18").daysTracked===1));
 
 const passed=results.filter(r=>r.ok).length;
 document.getElementById("summary").innerHTML=`<strong class="${passed===results.length?"pass":"fail"}">${passed}/${results.length} passed</strong>`;

@@ -4,11 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Rewire — break the habit, one day at a time</title>
-<meta name="description" content="An AI habit-breaking companion. Personalized plans, adaptive coaching, daily tracking, and in-the-moment craving support powered by Gemini." />
+<meta name="description" content="An AI habit-breaking companion. Personalized plans, adaptive coaching, daily tracking, and in-the-moment craving support powered by Groq AI." />
 <style>
   :root{
     --night:#14121f; --panel:#1e1b2e; --panel2:#272338; --border:#352f4d;
-    --text:#f2eefb; --dim:#a49dc0; --dimmer:#726b8f;
+    --text:#f2eefb; --dim:#a49dc0; --dimmer:#948dab;
     --dawn:#ff7a59; --amber:#ffb84d; --teal:#34d399; --violet:#8b7cf6; --red:#f0616d;
     --radius:16px; --maxw:820px;
   }
@@ -237,13 +237,13 @@
         <button class="coach-btn nudge" id="btn-nudge" type="button">💬 Get today's nudge</button>
         <button class="coach-btn craving" id="btn-craving" type="button">🆘 I'm craving right now</button>
       </div>
-      <div class="ai-output hidden" id="ai-output"></div>
+      <div class="ai-output hidden" id="ai-output" role="status" aria-live="polite"></div>
     </div>
 
     <!-- Personalized plan -->
     <div class="card">
       <h2>Your plan</h2>
-      <p class="sub">Built for your habit and trigger by Gemini.</p>
+      <p class="sub">Built for your habit and trigger by your AI coach.</p>
       <div id="plan-content"></div>
     </div>
 
@@ -265,7 +265,7 @@
   <div class="modal">
     <button class="modal-close" id="craving-close" type="button" aria-label="Close">×</button>
     <h2 id="craving-title">Let's get through this moment</h2>
-    <div class="ai-output craving" id="craving-output" style="margin-top:1rem"><span class="who">Coach</span><span class="loader"></span>Thinking of the right thing to say…</div>
+    <div class="ai-output craving" id="craving-output" role="status" aria-live="polite" style="margin-top:1rem"><span class="who">Coach</span><span class="loader"></span>Thinking of the right thing to say…</div>
   </div>
 </div>
 
@@ -388,9 +388,9 @@ function loadKey(){ return localStorage.getItem(KEY_STORE) || ""; }
 function saveKey(k){ localStorage.setItem(KEY_STORE, k); }
 
 /* =========================================================
-   GEMINI
+   GROQ
    ========================================================= */
-async function callGemini(prompt, asJson){
+async function callAI(prompt, asJson){
   const key = document.getElementById("apikey").value.trim();
   if (!key || key.length < 10) throw new Error("Paste your Groq API key at the top first.");
   saveKey(key);
@@ -454,7 +454,7 @@ $("btn-generate-plan").addEventListener("click", async () => {
   status.innerHTML = '<span class="loader"></span>Building your personal plan…';
   status.className = "status";
   try {
-    const raw = await callGemini(buildPlanPrompt(habitName, reason, target), true);
+    const raw = await callAI(buildPlanPrompt(habitName, reason, target), true);
     const plan = safeParseJson(raw);
     const habit = { name: habitName, reason, target, startDate: todayStr(), plan, checkins: [] };
     saveHabit(habit);
@@ -471,6 +471,7 @@ $("btn-generate-plan").addEventListener("click", async () => {
 function renderRing(streak, best){
   const pct = best > 0 ? Math.min(1, streak / Math.max(best, 7)) : (streak > 0 ? 1 : 0);
   const r = 56, c = 2 * Math.PI * r, off = c * (1 - pct);
+  $("streak-ring").setAttribute("aria-label", `Streak progress: ${streak} day${streak === 1 ? "" : "s"}`);
   $("streak-ring").innerHTML = `
     <svg width="130" height="130" viewBox="0 0 130 130" aria-hidden="true">
       <circle cx="65" cy="65" r="${r}" fill="none" stroke="#352f4d" stroke-width="10"/>
@@ -560,7 +561,7 @@ $("btn-nudge").addEventListener("click", async () => {
   btn.disabled = true;
   try {
     const stats = computeStats(habit);
-    const text = await callGemini(buildNudgePrompt(habit, stats, recentSummary(habit.checkins)), false);
+    const text = await callAI(buildNudgePrompt(habit, stats, recentSummary(habit.checkins)), false);
     out.innerHTML = `<span class="who">Coach</span>${escHtml(text.trim())}`;
   } catch(e){
     out.innerHTML = `<span class="who">Coach</span>${escHtml(e.message)}`;
@@ -568,22 +569,38 @@ $("btn-nudge").addEventListener("click", async () => {
 });
 
 /* ---- AI COACH: CRAVING (modal) ---- */
+let cravingReturnFocus = null;
+
+function openCravingModal(){
+  cravingReturnFocus = document.activeElement;
+  $("craving-modal").classList.remove("hidden");
+  $("craving-close").focus();
+}
+function closeCravingModal(){
+  $("craving-modal").classList.add("hidden");
+  (cravingReturnFocus || $("btn-craving")).focus();
+}
+
 $("btn-craving").addEventListener("click", async () => {
   const habit = loadHabit(); if (!habit) return;
-  $("craving-modal").classList.remove("hidden");
+  openCravingModal();
   const out = $("craving-output");
   out.innerHTML = '<span class="who">Coach</span><span class="loader"></span>I\'m here. One second…';
   try {
     const today = (habit.checkins||[]).find(c => c.date === todayStr()) || {};
-    const text = await callGemini(buildCravingPrompt(habit, $("mood").value || today.mood, $("trigger").value || today.trigger), false);
+    const text = await callAI(buildCravingPrompt(habit, $("mood").value || today.mood, $("trigger").value || today.trigger), false);
     out.innerHTML = `<span class="who">Coach</span>${escHtml(text.trim())}`;
   } catch(e){
     out.innerHTML = `<span class="who">Coach</span>${escHtml(e.message)}`;
   }
 });
-$("craving-close").addEventListener("click", () => $("craving-modal").classList.add("hidden"));
-$("craving-modal").addEventListener("click", e => { if (e.target === $("craving-modal")) $("craving-modal").classList.add("hidden"); });
-document.addEventListener("keydown", e => { if (e.key === "Escape") $("craving-modal").classList.add("hidden"); });
+$("craving-close").addEventListener("click", closeCravingModal);
+$("craving-modal").addEventListener("click", e => { if (e.target === $("craving-modal")) closeCravingModal(); });
+document.addEventListener("keydown", e => {
+  if ($("craving-modal").classList.contains("hidden")) return;
+  if (e.key === "Escape") closeCravingModal();
+  if (e.key === "Tab"){ e.preventDefault(); $("craving-close").focus(); }
+});
 
 /* ---- RESET ---- */
 $("btn-reset").addEventListener("click", () => {

@@ -29,7 +29,7 @@ Four distinct prompts power four different jobs: plan generation, adaptive nudge
 
 ## Tests
 
-Open `tests.html` — unit tests for the streak logic and helpers.
+Open `tests.html` — unit tests for the streak logic, helpers, and the `escHtml` XSS-sanitization function that AI output is routed through before rendering.
 
 ## Safety
 
