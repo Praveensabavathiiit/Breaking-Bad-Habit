@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tests — Rewire</title>
+<style>
+body{font-family:ui-monospace,monospace;background:#14121f;color:#f2eefb;padding:2rem}
+.pass{color:#34d399}.fail{color:#f0616d;font-weight:700}
+h1{font-family:Georgia,serif}#summary{margin:1rem 0;font-size:1.1rem}li{padding:.2rem 0}
+</style>
+</head>
+<body>
+<h1>Rewire unit tests</h1>
+<div id="summary">Running…</div>
+<ul id="out"></ul>
+<script>
+const DAY_MS = 86400000;
+function daysBetween(a,b){const d1=new Date(a+"T00:00:00"),d2=new Date(b+"T00:00:00");return Math.round((d2-d1)/DAY_MS);}
+function computeStreak(startDate,checkins,today){const slips=checkins.filter(c=>c.status==="slip").map(c=>c.date).sort();const lastSlip=slips.length?slips[slips.length-1]:null;const from=lastSlip?lastSlip:startDate;return Math.max(0,daysBetween(from,today));}
+function computeLongestStreak(startDate,checkins,today){const slips=checkins.filter(c=>c.status==="slip").map(c=>c.date).sort();const p=[startDate,...slips,today];let best=0;for(let i=1;i<p.length;i++)best=Math.max(best,daysBetween(p[i-1],p[i]));return best;}
+function hasCheckedInToday(checkins,today){return (checkins||[]).some(c=>c.date===today);}
+function safeParseJson(text){if(!text)throw new Error("empty");const c=text.replace(/```json/gi,"").replace(/```/g,"").trim();const s=c.indexOf("{"),e=c.lastIndexOf("}");return JSON.parse(s!==-1&&e!==-1?c.slice(s,e+1):c);}
+
+const results=[];
+function test(n,f){try{f();results.push({n,ok:true});}catch(e){results.push({n,ok:false,m:e.message});}}
+function assert(c,m){if(!c)throw new Error(m||"failed");}
+function eq(a,b){return JSON.stringify(a)===JSON.stringify(b);}
+
+test("daysBetween counts calendar days", ()=>assert(daysBetween("2026-07-08","2026-07-18")===10));
+test("streak with no slip = days since start", ()=>assert(computeStreak("2026-07-08",[],"2026-07-18")===10));
+test("streak resets to days since last slip", ()=>assert(computeStreak("2026-07-01",[{status:"slip",date:"2026-07-15"}],"2026-07-18")===3));
+test("streak is 0 if slipped today", ()=>assert(computeStreak("2026-07-01",[{status:"slip",date:"2026-07-18"}],"2026-07-18")===0));
+test("longest streak spans biggest gap", ()=>assert(computeLongestStreak("2026-07-01",[{status:"slip",date:"2026-07-05"},{status:"slip",date:"2026-07-14"}],"2026-07-18")===9));
+test("good check-ins don't reset streak", ()=>assert(computeStreak("2026-07-10",[{status:"good",date:"2026-07-12"},{status:"good",date:"2026-07-15"}],"2026-07-18")===8));
+test("hasCheckedInToday true when logged", ()=>assert(hasCheckedInToday([{date:"2026-07-18"}],"2026-07-18")===true));
+test("hasCheckedInToday false otherwise", ()=>assert(hasCheckedInToday([{date:"2026-07-17"}],"2026-07-18")===false));
+test("safeParseJson strips fences", ()=>assert(eq(safeParseJson('```json\n{"a":1}\n```'),{a:1})));
+test("safeParseJson recovers amid text", ()=>assert(eq(safeParseJson('Sure: {"summary":"hi"} done'),{summary:"hi"})));
+
+const passed=results.filter(r=>r.ok).length;
+document.getElementById("summary").innerHTML=`<strong class="${passed===results.length?"pass":"fail"}">${passed}/${results.length} passed</strong>`;
+document.getElementById("out").innerHTML=results.map(r=>`<li class="${r.ok?"pass":"fail"}">${r.ok?"✓":"✗"} ${r.n}${r.m?" — "+r.m:""}</li>`).join("");
+</script>
+</body>
+</html>
