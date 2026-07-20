@@ -93,7 +93,7 @@
   .coach-btn:hover:not(:disabled){filter:brightness(1.08)}
   .coach-btn:disabled{opacity:.5;cursor:not-allowed}
   .ai-output{margin-top:1.25rem;background:var(--panel2);border-left:4px solid var(--violet);border-radius:0 12px 12px 0;padding:1.1rem 1.25rem;font-size:.95rem;white-space:pre-wrap}
-  .ai-output.craving{border-left-color:var(--dawn)}
+  .ai-output.craving{border-left-color:var(--dawn);margin-top:1rem}
   .ai-output .who{font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;color:var(--dim);margin-bottom:.5rem}
 
   /* Plan */
@@ -123,6 +123,10 @@
   .key-bar{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:.85rem 1rem;margin-bottom:1.25rem;font-size:.85rem;display:flex;gap:.75rem;align-items:center;flex-wrap:wrap}
   .key-bar input{flex:1;min-width:180px;padding:.5rem .7rem}
   .key-ok{color:var(--teal);font-weight:600}
+
+  .visually-hidden{position:absolute;left:-9999px}
+  .plan-summary{color:var(--dim);margin-bottom:1rem}
+  .key-ok.err{color:var(--red)}
 
   .disclaimer{color:var(--dimmer);font-size:.8rem;text-align:center;margin-top:2rem;line-height:1.6}
   .loader{display:inline-block;width:15px;height:15px;border:2px solid var(--border);border-top-color:var(--violet);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:.4rem}
@@ -184,7 +188,7 @@
 
   <!-- ============ DASHBOARD SCREEN ============ -->
   <section id="screen-dash" class="hidden" aria-labelledby="dash-title">
-    <h2 id="dash-title" class="visually-hidden" style="position:absolute;left:-9999px">Your dashboard</h2>
+    <h2 id="dash-title" class="visually-hidden">Your dashboard</h2>
 
     <!-- Streak -->
     <div class="card">
@@ -265,7 +269,7 @@
   <div class="modal">
     <button class="modal-close" id="craving-close" type="button" aria-label="Close">×</button>
     <h2 id="craving-title">Let's get through this moment</h2>
-    <div class="ai-output craving" id="craving-output" role="status" aria-live="polite" style="margin-top:1rem"><span class="who">Coach</span><span class="loader"></span>Thinking of the right thing to say…</div>
+    <div class="ai-output craving" id="craving-output" role="status" aria-live="polite"><span class="who">Coach</span><span class="loader"></span>Thinking of the right thing to say…</div>
   </div>
 </div>
 
@@ -376,10 +380,19 @@ if (typeof window !== "undefined"){
 }
 
 /* =========================================================
+   APP — DOM-bound state and rendering, scoped out of the
+   global namespace. Only the pure helpers above (and their
+   window.Rewire export) are shared globally on purpose.
+   ========================================================= */
+(function(){
+"use strict";
+
+/* =========================================================
    STORAGE
    ========================================================= */
 const STORE_KEY = "rewire.habit.v1";
 const KEY_STORE = "rewire.apikey.v1";
+const MIN_KEY_LENGTH = 10;
 
 function loadHabit(){ try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch(_){ return null; } }
 function saveHabit(h){ localStorage.setItem(STORE_KEY, JSON.stringify(h)); }
@@ -392,7 +405,7 @@ function saveKey(k){ localStorage.setItem(KEY_STORE, k); }
    ========================================================= */
 async function callAI(prompt, asJson){
   const key = document.getElementById("apikey").value.trim();
-  if (!key || key.length < 10) throw new Error("Paste your Groq API key at the top first.");
+  if (!key || key.length < MIN_KEY_LENGTH) throw new Error("Paste your Groq API key at the top first.");
   saveKey(key);
   const url = "https://api.groq.com/openai/v1/chat/completions";
   const body = {
@@ -488,7 +501,7 @@ function renderPlan(plan){
   if (!plan){ $("plan-content").innerHTML = "<p class='empty'>No plan yet.</p>"; return; }
   const list = (arr) => (arr||[]).map(x => `<li>${escHtml(x)}</li>`).join("");
   $("plan-content").innerHTML = `
-    <p style="color:var(--dim);margin-bottom:1rem">${escHtml(plan.summary||"")}</p>
+    <p class="plan-summary">${escHtml(plan.summary||"")}</p>
     <div class="plan-block"><h3>🎯 Daily actions</h3><ul class="plan-list">${list(plan.dailyActions)}</ul></div>
     <div class="plan-block"><h3>⚡ Handling triggers</h3><ul class="plan-list">${list(plan.triggerTips)}</ul></div>
     <div class="plan-block"><h3>🏁 Milestones</h3><ul class="plan-list">${list(plan.milestones)}</ul></div>`;
@@ -621,20 +634,22 @@ $("btn-reset").addEventListener("click", () => {
 $("btn-savekey").addEventListener("click", () => {
   const key = $("apikey").value.trim();
   const ok = $("key-ok");
-  if (key.length < 10){
+  if (key.length < MIN_KEY_LENGTH){
     ok.textContent = "✕ Paste a valid key";
-    ok.style.color = "var(--red)";
+    ok.classList.add("err");
     ok.classList.remove("hidden");
     return;
   }
   saveKey(key);
   ok.textContent = "✓ Saved";
-  ok.style.color = "var(--teal)";
+  ok.classList.remove("err");
   ok.classList.remove("hidden");
 });
 $("apikey").addEventListener("keydown", e => {
   if (e.key === "Enter"){ e.preventDefault(); $("btn-savekey").click(); }
 });
+
+})();
 </script>
 </body>
 </html>
